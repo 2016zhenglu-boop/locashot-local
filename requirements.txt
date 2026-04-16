@@ -1,0 +1,5 @@
+flask==3.0.3
+Pillow==10.4.0
+easyocr==1.7.2
+deep-translator==1.11.4
+gunicorn==22.0.0

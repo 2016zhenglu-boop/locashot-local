@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocaShot Local - 图片多语言本地化</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #fff; min-height: 100vh; }
+
+.header { padding: 20px 40px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 20px; font-weight: 600; }
+.header span { color: #888; font-size: 14px; }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 30px 40px; }
+
+/* Upload Area */
+.upload-area {
+  border: 2px dashed #333; border-radius: 16px; padding: 60px; text-align: center;
+  cursor: pointer; transition: all 0.3s; margin-bottom: 30px;
+}
+.upload-area:hover { border-color: #4f8cff; background: #111; }
+.upload-area.dragover { border-color: #4f8cff; background: #1a1a2e; }
+.upload-area h2 { font-size: 22px; margin-bottom: 8px; }
+.upload-area p { color: #888; font-size: 14px; }
+.upload-area input { display: none; }
+
+/* Source lang select */
+.source-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.source-row label { font-size: 14px; color: #aaa; }
+.source-row select { background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+
+/* Steps */
+.step { display: none; }
+.step.active { display: block; }
+
+/* OCR Results */
+.ocr-section { margin: 20px 0; }
+.ocr-section h3 { font-size: 16px; margin-bottom: 12px; color: #ccc; }
+.text-block-list { display: flex; flex-direction: column; gap: 8px; }
+.text-block-item {
+  background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 12px; font-size: 14px;
+}
+.text-block-item .idx { color: #4f8cff; font-weight: 600; min-width: 24px; }
+.text-block-item .txt { flex: 1; }
+.text-block-item .pos { color: #666; font-size: 12px; }
+
+/* Language Picker */
+.lang-picker { margin: 20px 0; }
+.lang-picker h3 { font-size: 16px; margin-bottom: 12px; color: #ccc; }
+.lang-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.lang-chip {
+  background: #1a1a1a; border: 1px solid #333; border-radius: 20px; padding: 6px 14px;
+  font-size: 13px; cursor: pointer; transition: all 0.2s; user-select: none;
+}
+.lang-chip:hover { border-color: #4f8cff; }
+.lang-chip.selected { background: #4f8cff; border-color: #4f8cff; color: #fff; }
+
+/* Buttons */
+.btn {
+  background: #4f8cff; color: #fff; border: none; border-radius: 10px;
+  padding: 12px 28px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; margin-top: 16px;
+}
+.btn:hover { background: #3a7ae8; }
+.btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 1px solid #4f8cff; color: #4f8cff; }
+.btn-outline:hover { background: #4f8cff22; }
+
+/* Preview Grid */
+.preview-section { margin-top: 30px; }
+.preview-section h3 { font-size: 16px; margin-bottom: 16px; color: #ccc; }
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+.preview-card {
+  background: #1a1a1a; border: 1px solid #333; border-radius: 12px; overflow: hidden;
+  transition: all 0.3s;
+}
+.preview-card:hover { border-color: #4f8cff; transform: translateY(-2px); }
+.preview-card .card-header {
+  padding: 10px 14px; border-bottom: 1px solid #222; display: flex;
+  align-items: center; justify-content: space-between;
+}
+.preview-card .card-header .lang-label { font-size: 14px; font-weight: 600; }
+.preview-card .card-header .download-btn {
+  background: #222; border: 1px solid #444; border-radius: 6px; padding: 4px 10px;
+  color: #aaa; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.preview-card .card-header .download-btn:hover { background: #333; color: #fff; }
+.preview-card img { width: 100%; display: block; }
+
+/* Edit Modal */
+.modal-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: #1a1a1a; border: 1px solid #333; border-radius: 16px;
+  padding: 24px; width: 500px; max-height: 80vh; overflow-y: auto;
+}
+.modal h3 { margin-bottom: 16px; }
+.modal .edit-row { margin-bottom: 12px; }
+.modal .edit-row label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+.modal .edit-row input {
+  width: 100%; background: #111; border: 1px solid #333; border-radius: 8px;
+  padding: 8px 12px; color: #fff; font-size: 14px;
+}
+.modal .edit-row input:focus { outline: none; border-color: #4f8cff; }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* Loading */
+.loading { text-align: center; padding: 40px; color: #888; }
+.spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #333; border-top-color: #4f8cff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Progress */
+.progress-bar { background: #222; border-radius: 8px; height: 6px; margin: 12px 0; overflow: hidden; }
+.progress-bar .fill { height: 100%; background: #4f8cff; border-radius: 8px; transition: width 0.3s; }
+
+/* Original preview */
+.original-preview { margin: 20px 0; }
+.original-preview img { max-width: 100%; border-radius: 12px; border: 1px solid #333; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🌍 LocaShot Local</h1>
+  <span>图片多语言本地化工具</span>
+</div>
+
+<div class="container">
+  <!-- Step 1: Upload -->
+  <div id="step1" class="step active">
+    <div class="source-row">
+      <label>原始语言：</label>
+      <select id="sourceLang">
+        <option value="en">🇬🇧 English</option>
+        <option value="zh-CN">🇨🇳 中文</option>
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="ko">🇰🇷 한국어</option>
+        <option value="es">🇪🇸 Español</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="de">🇩🇪 Deutsch</option>
+      </select>
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+      <h2>📤 拖拽图片到这里，或点击上传</h2>
+      <p>支持 PNG、JPG、WebP 格式</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+  </div>
+
+  <!-- Step 2: OCR Results + Language Selection -->
+  <div id="step2" class="step">
+    <div class="original-preview">
+      <h3>📷 原始图片</h3>
+      <img id="originalImg" src="">
+    </div>
+
+    <div class="ocr-section">
+      <h3>🔍 识别到的文字区域 (<span id="blockCount">0</span> 个)</h3>
+      <div id="textBlockList" class="text-block-list"></div>
+    </div>
+
+    <div class="lang-picker">
+      <h3>🌐 选择目标语言</h3>
+      <div style="margin-bottom: 8px;">
+        <button class="btn btn-outline" onclick="selectAllLangs()" style="padding: 4px 12px; font-size: 12px; margin-top: 0;">全选</button>
+        <button class="btn btn-outline" onclick="deselectAllLangs()" style="padding: 4px 12px; font-size: 12px; margin-top: 0;">清空</button>
+      </div>
+      <div id="langGrid" class="lang-grid"></div>
+    </div>
+
+    <button class="btn" id="translateBtn" onclick="startTranslate()">🚀 开始翻译并生成</button>
+  </div>
+
+  <!-- Step 3: Preview Results -->
+  <div id="step3" class="step">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <h3>✅ 本地化预览</h3>
+      <button class="btn btn-outline" onclick="goBack()" style="margin-top: 0; padding: 6px 14px; font-size: 13px;">← 返回修改</button>
+    </div>
+    <div id="progressArea" class="loading" style="display:none;">
+      <span class="spinner"></span> 正在生成中... <span id="progressText">0/0</span>
+      <div class="progress-bar"><div class="fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div id="previewGrid" class="preview-grid"></div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>✏️ 编辑翻译 - <span id="editLangName"></span></h3>
+    <div id="editFields"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="saveEdit()">保存并重新渲染</button>
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let projectId = null;
+let projectData = null;
+let translationsData = {};
+let selectedLangs = new Set();
+let allLanguages = {};
+let currentEditLang = null;
+
+// Load languages
+fetch('/api/languages').then(r => r.json()).then(langs => {
+  allLanguages = langs;
+  const grid = document.getElementById('langGrid');
+  const sourceLang = document.getElementById('sourceLang').value;
+  Object.entries(langs).forEach(([code, info]) => {
+    const chip = document.createElement('div');
+    chip.className = 'lang-chip';
+    chip.dataset.lang = code;
+    chip.textContent = `${info.flag} ${info.name}`;
+    chip.onclick = () => toggleLang(code, chip);
+    grid.appendChild(chip);
+  });
+});
+
+function toggleLang(code, chip) {
+  if (selectedLangs.has(code)) {
+    selectedLangs.delete(code);
+    chip.classList.remove('selected');
+  } else {
+    selectedLangs.add(code);
+    chip.classList.add('selected');
+  }
+}
+
+function selectAllLangs() {
+  document.querySelectorAll('.lang-chip').forEach(c => {
+    selectedLangs.add(c.dataset.lang);
+    c.classList.add('selected');
+  });
+}
+function deselectAllLangs() {
+  selectedLangs.clear();
+  document.querySelectorAll('.lang-chip').forEach(c => c.classList.remove('selected'));
+}
+
+// Upload handling
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+
+uploadArea.onclick = () => fileInput.click();
+uploadArea.ondragover = e => { e.preventDefault(); uploadArea.classList.add('dragover'); };
+uploadArea.ondragleave = () => uploadArea.classList.remove('dragover');
+uploadArea.ondrop = e => {
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+};
+fileInput.onchange = () => { if (fileInput.files.length) handleFile(fileInput.files[0]); };
+
+async function handleFile(file) {
+  uploadArea.innerHTML = '<div class="loading"><span class="spinner"></span> 正在上传并识别文字...</div>';
+
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('source_lang', document.getElementById('sourceLang').value);
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    projectId = data.id;
+    projectData = data;
+
+    // Show original image
+    const reader = new FileReader();
+    reader.onload = e => document.getElementById('originalImg').src = e.target.result;
+    reader.readAsDataURL(file);
+
+    // Show text blocks
+    document.getElementById('blockCount').textContent = data.text_blocks.length;
+    const list = document.getElementById('textBlockList');
+    list.innerHTML = '';
+    data.text_blocks.forEach((b, i) => {
+      list.innerHTML += `<div class="text-block-item">
+        <span class="idx">#${i + 1}</span>
+        <span class="txt">${b.text}</span>
+        <span class="pos">${b.x},${b.y} ${b.w}×${b.h}</span>
+      </div>`;
+    });
+
+    // Switch to step 2
+    document.getElementById('step1').classList.remove('active');
+    document.getElementById('step2').classList.add('active');
+  } catch (e) {
+    alert('上传失败: ' + e.message);
+    uploadArea.innerHTML = '<h2>📤 拖拽图片到这里，或点击上传</h2><p>支持 PNG、JPG、WebP 格式</p>';
+  }
+}
+
+async function startTranslate() {
+  if (selectedLangs.size === 0) { alert('请至少选择一种目标语言'); return; }
+
+  const btn = document.getElementById('translateBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 翻译中...';
+
+  try {
+    // Translate
+    const res = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId, target_langs: [...selectedLangs] })
+    });
+    const data = await res.json();
+    translationsData = data.translations;
+
+    // Switch to step 3
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step3').classList.add('active');
+
+    // Render all languages
+    await renderAllPreviews();
+  } catch (e) {
+    alert('翻译失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 开始翻译并生成';
+  }
+}
+
+async function renderAllPreviews() {
+  const grid = document.getElementById('previewGrid');
+  grid.innerHTML = '';
+  const langs = [...selectedLangs];
+  const progressArea = document.getElementById('progressArea');
+  progressArea.style.display = 'block';
+
+  for (let i = 0; i < langs.length; i++) {
+    const lang = langs[i];
+    document.getElementById('progressText').textContent = `${i + 1}/${langs.length}`;
+    document.getElementById('progressFill').style.width = `${((i + 1) / langs.length) * 100}%`;
+
+    try {
+      const res = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          lang: lang,
+          translations: translationsData[lang]
+        })
+      });
+      const data = await res.json();
+      const info = allLanguages[lang] || { flag: '🏳️', name: lang };
+
+      const card = document.createElement('div');
+      card.className = 'preview-card';
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="lang-label">${info.flag} ${info.name}</span>
+          <div>
+            <a class="download-btn" onclick="editTranslation('${lang}')" style="cursor:pointer; margin-right: 4px;">✏️ 编辑</a>
+            <a class="download-btn" href="/api/download/${projectId}/${lang}" download>⬇️ 下载</a>
+          </div>
+        </div>
+        <img src="${data.image}" alt="${lang}">
+      `;
+      grid.appendChild(card);
+    } catch (e) {
+      console.error(`Render ${lang} failed:`, e);
+    }
+  }
+  progressArea.style.display = 'none';
+}
+
+function editTranslation(lang) {
+  currentEditLang = lang;
+  const info = allLanguages[lang] || { flag: '🏳️', name: lang };
+  document.getElementById('editLangName').textContent = `${info.flag} ${info.name}`;
+
+  const fields = document.getElementById('editFields');
+  fields.innerHTML = '';
+  const trans = translationsData[lang] || [];
+  projectData.text_blocks.forEach((b, i) => {
+    fields.innerHTML += `<div class="edit-row">
+      <label>原文: ${b.text}</label>
+      <input type="text" id="edit_${i}" value="${trans[i] || b.text}">
+    </div>`;
+  });
+
+  document.getElementById('editModal').classList.add('show');
+}
+
+async function saveEdit() {
+  const trans = [];
+  projectData.text_blocks.forEach((b, i) => {
+    trans.push(document.getElementById(`edit_${i}`).value);
+  });
+  translationsData[currentEditLang] = trans;
+
+  closeModal();
+
+  // Re-render this language
+  try {
+    const res = await fetch('/api/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        lang: currentEditLang,
+        translations: trans
+      })
+    });
+    const data = await res.json();
+
+    // Update the card
+    const cards = document.querySelectorAll('.preview-card');
+    cards.forEach(card => {
+      const label = card.querySelector('.lang-label');
+      const info = allLanguages[currentEditLang] || { flag: '🏳️', name: currentEditLang };
+      if (label && label.textContent.includes(info.name)) {
+        card.querySelector('img').src = data.image;
+      }
+    });
+  } catch (e) {
+    alert('重新渲染失败: ' + e.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('show');
+}
+
+function goBack() {
+  document.getElementById('step3').classList.remove('active');
+  document.getElementById('step2').classList.add('active');
+}
+</script>
+</body>
+</html>
