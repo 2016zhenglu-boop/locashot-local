@@ -23,7 +23,7 @@ COPY . .
 # 创建上传和输出目录
 RUN mkdir -p uploads outputs
 
-EXPOSE 5555
+# HF Spaces 使用 7860 端口
+EXPOSE 7860
 
-# Render 使用 PORT 环境变量，默认 5555
-CMD gunicorn --bind 0.0.0.0:${PORT:-5555} --timeout 300 --workers 2 app:app
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--timeout", "300", "--workers", "2", "app:app"]
